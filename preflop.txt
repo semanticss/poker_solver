@@ -1,0 +1,46 @@
+--- 40 bb RFIs ---
+
+BTN  = offsuit 8s/7s, suited 5s/4s, off aces and pockets
+^^^ dont go tighter than this range, but can go wider
+
+CO  = Offsuit 9s, suited 6s, A5o is bottom of the range, K8o is the bottom of the range
+
+HJ  = Off 10, suited 7s, A7o sometimes, K9o mostly, 86s sometimes, all pockets
+
+LJ = off 10s (QT and J10 sometimes), suited 8s, A9o bottom, no lower than Q7s, A2s bottom on that side
+
+UTG+1 = off jacks, suited 8s higher than 8
+
+UTG = off jacks, suited 9s higher than 9, no QJo
+
+--- against 2.2bb raises in BB ---
+
+vs BTN = off 6s, all suited
+
+vs CO = off 7s, all suited
+
+vs HJ = off 8s, all suited
+
+vs LJ = off 8s, all suited
+
+vs UTG+1 = off 8s, all suited
+
+vs UTG = off 9s, all suited
+
+NOTE: offsuit hands are more sensitive to raise sizing, suited realize much better equity so they aren't as sensitive.
+
+--- against 2.2bb raises in BTN ---
+
+rule of thumb: off 10s, suited 8s > 8, get rid of some off 10s as the PFA gets earlier in position
+
+--- against 2.2bb raises in CO ---
+
+rule of thumb: off Js, suited 9s, take out some jacks are PFR position gets closer to btn / earlier in position
+
+--- against 2.2bb raises in HJ ---
+
+rule of thumb: off Qs, suited 10s, NO MIDDLING SCs,  
+
+continue this pattern to LJ and UTG+1 and stuff just get generally tighter there
+
+
