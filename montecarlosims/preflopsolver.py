@@ -1,11 +1,14 @@
+import seaborn as sns
+import matplotlib as plt
+import math
+from itertools import combinations
 import random as rand
 import math
 from collections import Counter
-import math
 import os
-import streamlit as st
-from itertools import combinations
 import tqdm as tqdm
+from multiprocessing import Pool, cpu_count
+
 
 class DeckManager():
     def __init__(self, shuffle_on_reset = True, stage = 'preflop'):
@@ -81,8 +84,6 @@ def get_suit(card: int):
     return card // 13
 
 def evaluate_five_card_hand(cards: list):
-
-    assert len(cards) == 5 # 
     
     ranks = [get_rank(c) for c in cards] 
     suits = [get_suit(c) for c in cards] 
@@ -92,7 +93,6 @@ def evaluate_five_card_hand(cards: list):
 
     flush = straight = False
     
-    # Flush checker
     if len(set(suits)) == 1:
         flush = True
 
@@ -146,7 +146,7 @@ def best_seven_card_hand(cards: list):
     assert len(cards) == 7
     return max(evaluate_five_card_hand(list(combo)) for combo in combinations(cards, 5))
 
-def monte_sim(hero_hole: tuple, vills: int, community_cards: list, stage = 'preflop', num_simulations: int = 1000)-> float:
+def monte_sim(hero_hole: tuple, community_cards: list, stage = 'preflop', num_simulations: int = 1000000, vills: int = 4)-> float:
 
     wins, ties, losses = 0,0,0
 
@@ -160,9 +160,6 @@ def monte_sim(hero_hole: tuple, vills: int, community_cards: list, stage = 'pref
         vill_hands = [tuple(vill_cards[i:i + 2]) for i in range(0, 2 * vills, 2)]
 
         board = deck.deal_community_to_stage(community_cards)
-
-        if len(board) != 5:
-            raise ValueError(f"Board has {len(board)} cards instead of 5: {board}")
         
         hero_best = best_seven_card_hand(list(hero_hole) + board)
         vill_best = [best_seven_card_hand(list(opp) + board) for opp in vill_hands]
@@ -174,24 +171,8 @@ def monte_sim(hero_hole: tuple, vills: int, community_cards: list, stage = 'pref
         else:
             wins += 1
 
-        
-        if test > 0 and math.log10(test).is_integer():
-            print(f'{wins} {ties} {losses}')
-            print(f'wins + ties: {wins + ties}')
-            print({
+    return (wins + ties) / num_simulations
 
-        "win_probability": wins / test,
-        "tie_probability": ties / test,
-        "loss_probability": losses / test,
-        "win + ties / tests": (wins + ties) / test
-    })
-
-    return {
-        "win_probability": wins / num_simulations,
-        "tie_probability": ties / num_simulations,
-        "loss_probability": losses / num_simulations,
-        "win_ties_probability": (wins + ties) / num_simulations
-    }
 
 def ev_calc(pot: float, call: float, winp: float, tiep: float, oppnum: int) -> float:
 
@@ -211,136 +192,67 @@ def best_choice(pot: float, call: float, raise_amnt: float, winp: float, tiep: f
     else:
         return 'fold'
 
-def poker_solver(hero_hole: tuple, num_opponents: int, community_cards: list, # return after 100, 1000, 10000, etc.
+def poker_solver(hero_hole: tuple, community_cards: list, # return after 100, 1000, 10000, etc.
                  stage: str = 'preflop',
-                 num_simulations: int = 1000) -> dict:
+                 num_simulations: int = 1000, num_opponents: int = 4) -> dict:
 
-    chances = monte_sim(hero_hole, num_opponents, community_cards, stage, num_simulations)
+    chances = monte_sim(hero_hole, community_cards)
 
-    # win_probability = chances["win_probability"]
-    # tie_probability = chances["tie_probability"]
-    # decision = best_choice(pot_size, call_amount, raise_amount, win_probability, tie_probability, num_opponents)
-
-    return {
-        "probabilities": chances,
-        "optimal_decision": "not implemented right now."
-    }
+    return chances
 
 
-def is_valid_card_str(card_str):
-    valid_ranks = {'2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'}
-    valid_suits = {'s', 'h', 'd', 'c'}
-
-    rank_part = card_str[:-1].upper()
-    suit_part = card_str[-1].lower()
-
-    return rank_part in valid_ranks and suit_part in valid_suits
-
-
-def make_sure_cards_and_stuff_isnt_super_cooked_holy_cow(card_strs: list, already_used = None):
-
-    try:
-        for card_str in card_strs:
-            if not is_valid_card_str(card_str):
-                raise ValueError(f"'{card_str}' is not a valid card.")
-
-        cards = [card_str_to_int(card) for card in card_strs]
-
-        if len(set(cards)) != len(cards):
-            raise ValueError("Duplicate cards entered.")
-
-        if already_used:
-            if any(card in already_used for card in cards):
-                raise ValueError("Card already used.")
-
-        return cards
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-
-if __name__ == "__main__":
-
-    already_used = set()
+def card_str_to_int(card_str):
+        
+        rank_map = {'2': 0, '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6,
+                    '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11, 'A': 12}
+        suit_map = {'c': 0, 'd': 1, 'h': 2, 's': 3}
+        rank_part = card_str[:-1]
+        suit_part = card_str[-1].lower()
+        return 13 * suit_map[suit_part] + rank_map[rank_part.upper()]
 
 
-    while True:
-        hero_input = input("enter your hero hole cards (e.g. 'ace of spades = As king of spades = Ks'): ").strip().split()
-        validated = make_sure_cards_and_stuff_isnt_super_cooked_holy_cow(hero_input)
-        if validated and len(validated) == 2:
-            hero_hole = tuple(validated)
-            already_used.update(hero_hole)
-            break
-        else:
-            print("Invalid hero cards. Try again.")
+def generate_preflop_int_combos():
+    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+    suits = ['s', 'h', 'd', 'c']
+    combos = {}
 
+    for i, r1 in enumerate(ranks):
+        for j, r2 in enumerate(ranks):
+            if i < j:
+                label_suited = f"{r2}{r1}s"
+                label_offsuit = f"{r2}{r1}o"
 
-    stages = {'0': 'preflop', '1': 'flop', '2': 'turn', '3': 'river'}
-    while True:
-        print("choose a game stage:")
-        print("0 - preflop (evaluate hand preflop)")
-        print("1 - to flop (3 cards)")
-        print("2 - to turn (4 cards)")
-        print("3 - to river (5 cards)")
-        stage_choice = input("type 0, 1, 2 or 3: ").strip()
-        if stage_choice in stages:
-            stage = stages[stage_choice]
-            num_board_cards = {'preflop': 0, 'flop': 3, 'turn': 4, 'river': 5}[stage]
-            break
-        else:
-            print("invalid pick")
+                # One suited example (same suit)
+                c1 = f"{r2}s"
+                c2 = f"{r1}s"
+                combos[label_suited] = (card_str_to_int(c1), card_str_to_int(c2))
 
-    while True:
+                # One offsuit example (diff suits)
+                c1 = f"{r2}s"
+                c2 = f"{r1}h"
+                combos[label_offsuit] = (card_str_to_int(c1), card_str_to_int(c2))
 
-        mode = input("manually enter community cards? (y/n): ").strip().lower()
-        if mode in {'y', 'n'}:
-            manual = mode == 'y'
-            break
-        else:
-            print("Please enter 'y' or 'n'.")
+            elif i == j:
+                label_pair = f"{r1}{r1}"
+                c1 = f"{r1}s"
+                c2 = f"{r1}h"
+                combos[label_pair] = (card_str_to_int(c1), card_str_to_int(c2))
 
-    if manual: # DUPILCATE CARDS BEING FLOPPED
-        while True:
-            board_input = input(f"Enter {num_board_cards} community cards (e.g., '9c Td Ah'): ").strip().split()
-            validated = make_sure_cards_and_stuff_isnt_super_cooked_holy_cow(board_input, already_used)
-            if validated and len(validated) == num_board_cards:
-                community_cards = validated
-                already_used.update(community_cards)
-                break
-            else:
-                print("Invalid board. Try again.")
-    else:
-        deck = DeckManager(stage=stage)
-        deck.remove_used(already_used)
-        community_cards = deck.deal(num_board_cards)
-        print(community_cards)
-        already_used.update(community_cards)
-        print("Generated board:")
-        print(" ".join(f"{ranks[get_rank(c)]}{suits[get_suit(c)]}" for c in community_cards))
+    return combos
 
+def hand_simulation(args):
+    hand_label, hero_hole = args
 
-    num_opponents = int(input("Number of opponents: ").strip())
-    # pot_size = float(input("Pot size: ").strip())
-    # call_amount = float(input("Call amount: ").strip())
-    # raise_amount = float(input("Raise amount: ").strip())
-    num_simulations = int(input("Number of simulations: ").strip())
-
-
-    result = poker_solver(
+    return (hand_label, poker_solver(
         hero_hole,
-        num_opponents,
-        community_cards,
-        # pot_size,
-        # call_amount,
-        # raise_amount,
-        stage,
-        num_simulations
-    )
+        []
+    ))
 
-    print("\n--- sim results ---")
-    print("win % --> ", round(result['probabilities']['win_probability'] * 100, 2))
-    print("tie % --> ", round(result['probabilities']['tie_probability'] * 100, 2))
-    print("loss % --> ", round(result['probabilities']['loss_probability'] * 100, 2))
-    print("win + tie % -->", round(result['probabilities']["win_ties_probability"] * 100, 2))
-    print()
-    print("Recommended action:", result['optimal_decision'].lower())
+
+hands = list(generate_preflop_int_combos().items()) # returns the tuple with hand name and int tuple
+
+if __name__ == "__main__": # does NOT work --> python switches cores and doesn't have good multithreading
+    with Pool(18) as pool:
+        results = pool.map(hand_simulation, hands)
+    
+    equity_map = dict(results)
