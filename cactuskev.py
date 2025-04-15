@@ -23,7 +23,6 @@ RANKS = '23456789TJQKA'
 PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41]
 SUITS = {'c': 0x8000, 'd': 0x4000, 'h': 0x2000, 's': 0x1000}
 
-# Maps card string to rank and prime
 RANK_TO_INT = {rank: i for i, rank in enumerate(RANKS)}
 RANK_TO_PRIME = {rank: prime for rank, prime in zip(RANKS, PRIMES)}
 
